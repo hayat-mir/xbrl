@@ -6,6 +6,7 @@ from arelle.ModelFormulaObject import (
 )
 from arelle import XbrlConst
 
+# Function to parse formulas and structure them hierarchically
 def parse_formulas(model_xbrl):
     """
     Extracts formulas and their relationships in a hierarchical structure.
@@ -14,6 +15,7 @@ def parse_formulas(model_xbrl):
     formula_hierarchy = OrderedDict()
     root_objects = rootFormulaObjects(model_xbrl)
 
+    # Define the arcroles related to formula processing
     formula_arcroles = [
         XbrlConst.assertionSet,
         XbrlConst.variableSet,
@@ -26,10 +28,12 @@ def parse_formulas(model_xbrl):
         if root_label not in formula_hierarchy:
             formula_hierarchy[root_label] = OrderedDict()
 
+        # Recursively process each formula object
         process_formula_object(root, model_xbrl, formula_hierarchy[root_label], formula_arcroles, visited=set())
 
     return formula_hierarchy
 
+# Function to recursively process formula objects and construct the hierarchy
 def process_formula_object(obj, model_xbrl, hierarchy, formula_arcroles, visited, depth=0, max_depth=100):
     """
     Recursively processes formula relationships and builds a hierarchical representation.
@@ -37,12 +41,14 @@ def process_formula_object(obj, model_xbrl, hierarchy, formula_arcroles, visited
     if obj is None or not hasattr(obj, "xlinkLabel"):
         return
 
+    # Prevent infinite recursion and excessive depth
     if depth > max_depth or obj in visited:
         return
 
     visited.add(obj)
     obj_name = obj.xlinkLabel or f"Unnamed_{id(obj)}"
 
+    # Store relevant properties of the formula object
     hierarchy[obj_name] = {
         "type": obj.localName,
         "label": obj.logLabel() if hasattr(obj, "logLabel") else obj.xlinkLabel or "",
@@ -54,6 +60,7 @@ def process_formula_object(obj, model_xbrl, hierarchy, formula_arcroles, visited
         "children": OrderedDict()
     }
 
+    # Process relationships for each formula arcrole
     for arcrole in formula_arcroles:
         relationship_set = model_xbrl.relationshipSet(arcrole)
         if not relationship_set:
@@ -69,6 +76,7 @@ def process_formula_object(obj, model_xbrl, hierarchy, formula_arcroles, visited
 
             child_name = child.xlinkLabel or f"Unnamed_{id(child)}"
 
+            # Add child node to the hierarchy
             if child_name not in hierarchy[obj_name]["children"]:
                 hierarchy[obj_name]["children"][child_name] = {
                     "type": child.localName,
@@ -81,6 +89,7 @@ def process_formula_object(obj, model_xbrl, hierarchy, formula_arcroles, visited
                     "children": OrderedDict()
                 }
 
+            # Recursively process the child formula object
             process_formula_object(
                 child,
                 model_xbrl,

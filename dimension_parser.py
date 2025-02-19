@@ -1,5 +1,6 @@
 # Compatibility Patch for collections.abc in Python 3.10+
 import collections
+# Ensure compatibility for MutableSet and MutableMapping in older Python versions
 if not hasattr(collections, "MutableSet"):
     from collections.abc import MutableSet
     collections.MutableSet = MutableSet
@@ -23,8 +24,10 @@ def process_dimension_relationships(arcrole, model_xbrl, elr):
     print(f"\n🔍 Processing {arcrole} in ELR: {elr}")
 
     hierarchy = OrderedDict()
+    # Dictionary to store parent-child relationships
     parent_child_map = defaultdict(lambda: {"abstract": False, "children": OrderedDict(), "parent": None})
 
+    # Retrieve relationships for the given arcrole and ELR
     relationship_set = model_xbrl.relationshipSet(arcrole, elr)
     
     if not relationship_set or not relationship_set.modelRelationships:
@@ -36,6 +39,7 @@ def process_dimension_relationships(arcrole, model_xbrl, elr):
     all_parents = set()
     all_children = set()
 
+    # Process each relationship
     for rel in relationship_set.modelRelationships:
         parent = rel.fromModelObject
         child = rel.toModelObject
@@ -45,6 +49,7 @@ def process_dimension_relationships(arcrole, model_xbrl, elr):
             continue
 
         try:
+            # Extract element names
             parent_name = f"[{elr.split('/')[-1]}] {parent.qname.localName}" if parent.qname else f"Unnamed_{id(parent)}"
             child_name = child.qname.localName if child.qname else f"Unnamed_{id(child)}"
         except AttributeError:
@@ -56,6 +61,7 @@ def process_dimension_relationships(arcrole, model_xbrl, elr):
         all_parents.add(parent_name)
         all_children.add(child_name)
 
+        # Store relationship structure
         if parent_name not in parent_child_map:
             parent_child_map[parent_name]["abstract"] = getattr(parent, "isAbstract", False)
 
@@ -73,6 +79,7 @@ def process_dimension_relationships(arcrole, model_xbrl, elr):
     for parent, data in parent_child_map.items():
         print(f"  🔺 {parent}: {len(data['children'])} children")
 
+    # Identify root nodes (nodes that are parents but not children)
     root_nodes = all_parents - all_children
 
     if not root_nodes:
@@ -82,6 +89,7 @@ def process_dimension_relationships(arcrole, model_xbrl, elr):
     print(f"\n📌 Identified {len(root_nodes)} Root Nodes for {arcrole} in {elr}: {root_nodes}")
 
     def build_hierarchy(node_name, visited=None, depth=0, max_depth=100):
+        """ Recursively builds the hierarchy from root nodes. """
         if visited is None:
             visited = set()
         if node_name in visited:
@@ -107,6 +115,7 @@ def process_dimension_relationships(arcrole, model_xbrl, elr):
         visited.remove(node_name)
         return node
 
+    # Build hierarchy starting from root nodes
     for root in root_nodes:
         hierarchy[root] = build_hierarchy(root)
 
@@ -123,6 +132,7 @@ def parse_dimensions(model_xbrl):
     """
     print("\n📂 Starting Dimension Processing...")
 
+    # List of dimension-related arcroles
     dim_arcroles = [
         XbrlConst.hypercubeDimension,
         XbrlConst.dimensionDomain,
@@ -130,6 +140,8 @@ def parse_dimensions(model_xbrl):
     ]
 
     dimensions = OrderedDict()
+    
+    # Iterate through arcroles and process relationships
     for arcrole in dim_arcroles:
         relationship_set = model_xbrl.relationshipSet(arcrole)
         if not relationship_set or not relationship_set.modelRelationships:
